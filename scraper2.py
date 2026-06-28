@@ -74,7 +74,7 @@ def extract_labels_from_page(soup, title, url):
 
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
 
-BLOG_ID = "7936247778963054240"
+BLOG_ID = "8970771897067197122"
 
 BASE_URL = "https://www.pakistanjobsbank.com/"
 
