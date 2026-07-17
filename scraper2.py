@@ -1,3 +1,5 @@
+
+from facebook_post import post_to_facebook
 import schedule
 import time
 import requests
@@ -542,15 +544,17 @@ def post_to_blogger(service, job):
 
     }
 
-    service.posts().insert(
-
+    result = service.posts().insert(
         blogId=BLOG_ID,
         body=post,
         isDraft=False
-
     ).execute()
 
     print("✅ Posted:", job["title"])
+
+    blogger_url = result["url"]
+
+    post_to_facebook(job["title"], blogger_url)
 
 
 # ======================================================
