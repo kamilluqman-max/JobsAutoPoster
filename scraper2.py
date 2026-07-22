@@ -1,4 +1,3 @@
-
 from facebook_post import post_to_facebook
 import schedule
 import time
@@ -12,6 +11,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+
 
 # ======================================================
 # CONFIGURATION
@@ -33,6 +33,7 @@ POSTS_PER_RUN = 5
 
 REQUEST_TIMEOUT = 10
 
+
 # ======================================================
 # BLOGGER AUTH
 # ======================================================
@@ -42,6 +43,7 @@ def get_service():
     creds = None
 
     if os.path.exists("token.json"):
+
         creds = Credentials.from_authorized_user_file(
             "token.json",
             SCOPES
@@ -50,6 +52,7 @@ def get_service():
     if not creds or not creds.valid:
 
         if creds and creds.expired and creds.refresh_token:
+
             creds.refresh(Request())
 
         else:
@@ -59,16 +62,25 @@ def get_service():
                 SCOPES
             )
 
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(
+                port=0
+            )
 
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
+        with open(
+            "token.json",
+            "w"
+        ) as token:
+
+            token.write(
+                creds.to_json()
+            )
 
     return build(
         "blogger",
         "v3",
         credentials=creds
     )
+
 
 # ======================================================
 # DOWNLOAD ALL BLOG POSTS
@@ -77,6 +89,7 @@ def get_service():
 def get_existing_posts(service):
 
     titles = set()
+
     urls = set()
 
     token = None
@@ -89,13 +102,26 @@ def get_existing_posts(service):
             pageToken=token
         ).execute()
 
-        for post in response.get("items", []):
+        for post in response.get(
+            "items",
+            []
+        ):
 
-            title = post.get("title","").strip().lower()
+            title = post.get(
+                "title",
+                ""
+            ).strip().lower()
 
-            titles.add(title)
+            if title:
 
-            content = post.get("content","")
+                titles.add(
+                    title
+                )
+
+            content = post.get(
+                "content",
+                ""
+            )
 
             m = re.search(
                 r'<!--SOURCE:(.*?)-->',
@@ -103,16 +129,21 @@ def get_existing_posts(service):
             )
 
             if m:
+
                 urls.add(
                     m.group(1).strip()
                 )
 
-        token = response.get("nextPageToken")
+        token = response.get(
+            "nextPageToken"
+        )
 
         if not token:
+
             break
 
     return titles, urls
+
 
 # ======================================================
 # PAGE VALIDATION
@@ -138,11 +169,15 @@ def is_valid_job_page(text):
         for k in keywords
     )
 
+
 # ======================================================
 # FILTER NON JOB POSTS
 # ======================================================
 
-def is_real_job(title, content):
+def is_real_job(
+    title,
+    content
+):
 
     title = title.lower()
 
@@ -159,70 +194,116 @@ def is_real_job(title, content):
 
     ]
 
-    if any(word in title for word in blacklist):
+    if any(
+        word in title
+        for word in blacklist
+    ):
+
         return False
 
     if len(content) < 600:
+
         return False
 
     return True
+
+
 # ======================================================
 # LABEL EXTRACTION
 # ======================================================
 
-def extract_labels_from_page(soup, title, url):
+def extract_labels_from_page(
+    soup,
+    title,
+    url
+):
 
     labels = set()
 
     # ---------- Breadcrumb ----------
-    for a in soup.select("ul.breadcrumb a"):
-        txt = a.get_text(strip=True)
+
+    for a in soup.select(
+        "ul.breadcrumb a"
+    ):
+
+        txt = a.get_text(
+            strip=True
+        )
+
         if txt:
-            labels.add(txt)
+
+            labels.add(
+                txt
+            )
 
     # ---------- URL ----------
+
     url_lower = url.lower()
 
     mappings = {
 
-        "bank":"Bank Jobs",
-        "police":"Police Jobs",
-        "army":"Army Jobs",
-        "navy":"Navy Jobs",
-        "airforce":"PAF Jobs",
-        "medical":"Medical Jobs",
-        "hospital":"Medical Jobs",
-        "education":"Education Jobs",
-        "university":"Education Jobs",
-        "ngo":"NGO Jobs",
-        "embassy":"Embassy Jobs",
-        "government":"Government Jobs"
+        "bank": "Bank Jobs",
+
+        "police": "Police Jobs",
+
+        "army": "Army Jobs",
+
+        "navy": "Navy Jobs",
+
+        "airforce": "PAF Jobs",
+
+        "medical": "Medical Jobs",
+
+        "hospital": "Medical Jobs",
+
+        "education": "Education Jobs",
+
+        "university": "Education Jobs",
+
+        "ngo": "NGO Jobs",
+
+        "embassy": "Embassy Jobs",
+
+        "government": "Government Jobs"
 
     }
 
-    for key,value in mappings.items():
+    for key, value in mappings.items():
 
         if key in url_lower:
-            labels.add(value)
+
+            labels.add(
+                value
+            )
 
     # ---------- Title ----------
+
     title_lower = title.lower()
 
-    for key,value in mappings.items():
+    for key, value in mappings.items():
 
         if key in title_lower:
-            labels.add(value)
+
+            labels.add(
+                value
+            )
 
     # ---------- Cleanup ----------
 
     bad = {
 
         "home",
+
         "jobs",
+
         "latest",
+
         "pakistan",
+
         "read more",
+
         "apply",
+
         "advertisement"
 
     }
@@ -234,17 +315,28 @@ def extract_labels_from_page(soup, title, url):
         item = item.strip()
 
         if len(item) < 3:
+
             continue
 
         if item.lower() in bad:
+
             continue
 
-        cleaned.append(item)
+        cleaned.append(
+            item
+        )
 
     if not cleaned:
-        cleaned.append("Government Jobs")
 
-    return list(dict.fromkeys(cleaned))
+        cleaned.append(
+            "Government Jobs"
+        )
+
+    return list(
+        dict.fromkeys(
+            cleaned
+        )
+    )
 
 
 # ======================================================
@@ -256,36 +348,43 @@ def get_job_type(title):
     t = title.lower()
 
     if "bank" in t:
+
         return "Bank Jobs"
 
-    if "police" in t:
+    if "police" in t or "traffic" in t:
+
         return "Police Jobs"
 
     if "army" in t:
+
         return "Army Jobs"
 
     if "navy" in t:
+
         return "Navy Jobs"
 
     if "air force" in t or "paf" in t:
+
         return "PAF Jobs"
 
     if "medical" in t or "hospital" in t:
+
         return "Medical Jobs"
 
     if "education" in t or "university" in t:
+
         return "Education Jobs"
 
     if "teacher" in t or "school" in t:
+
         return "Education Jobs"
 
-    if "police" in t or "traffic" in t:
-        return "Police Jobs"
-
     if "ngo" in t:
+
         return "NGO Jobs"
 
     if "embassy" in t:
+
         return "Embassy Jobs"
 
     return "Government Jobs"
@@ -297,7 +396,9 @@ def get_job_type(title):
 
 def get_jobs():
 
-    print("Loading homepage...")
+    print(
+        "Loading homepage..."
+    )
 
     response = requests.get(
         BASE_URL,
@@ -314,24 +415,38 @@ def get_jobs():
 
     seen = set()
 
-    for a in soup.find_all("a", href=True):
+    for a in soup.find_all(
+        "a",
+        href=True
+    ):
 
-        title = a.get_text(strip=True)
+        title = a.get_text(
+            strip=True
+        )
 
         href = a["href"]
 
         if len(title) < 20:
+
             continue
 
-        if href.startswith("http"):
+        if href.startswith(
+            "http"
+        ):
+
             link = href
+
         else:
+
             link = BASE_URL + href
 
         if link in seen:
+
             continue
 
-        seen.add(link)
+        seen.add(
+            link
+        )
 
         try:
 
@@ -346,11 +461,20 @@ def get_jobs():
                 "html.parser"
             )
 
-            if not is_valid_job_page(page.text):
+            if not is_valid_job_page(
+                page.text
+            ):
+
                 continue
 
-            if not is_real_job(title,page.text):
+            if not is_real_job(
+                title,
+                page.text
+            ):
+
                 continue
+
+            # ---------- Extract Image ----------
 
             image = None
 
@@ -360,17 +484,30 @@ def get_jobs():
             )
 
             if og:
-                image = og.get("content")
+
+                image = og.get(
+                    "content"
+                )
 
             if not image:
 
-                img = page_soup.find("img")
+                img = page_soup.find(
+                    "img"
+                )
 
                 if img:
-                    image = img.get("src")
 
-            if image and not image.startswith("http"):
+                    image = img.get(
+                        "src"
+                    )
+
+            if image and not image.startswith(
+                "http"
+            ):
+
                 image = BASE_URL + image
+
+            # ---------- Extract Labels ----------
 
             labels = extract_labels_from_page(
                 page_soup,
@@ -378,24 +515,48 @@ def get_jobs():
                 link
             )
 
-            jobs.append({
+            # ---------- Create Job ----------
 
-                "title":title,
-                "link":link,
-                "image":image,
-                "labels":labels,
-                "job_type":get_job_type(title),
-                "id":hashlib.md5(
+            job = {
+
+                "title": title,
+
+                "link": link,
+
+                "image": image,
+
+                "labels": labels,
+
+                "job_type": get_job_type(
+                    title
+                ),
+
+                "id": hashlib.md5(
                     link.encode()
                 ).hexdigest()
 
-            })
+            }
 
-            print("Found:",title)
+            jobs.append(
+                job
+            )
+
+            print(
+                "Found:",
+                title
+            )
+
+            print(
+                "Image:",
+                image
+            )
 
         except Exception as e:
 
-            print("Skipped:",e)
+            print(
+                "Skipped:",
+                e
+            )
 
     print(
         "Total Jobs:",
@@ -403,6 +564,8 @@ def get_jobs():
     )
 
     return jobs
+
+
 # ======================================================
 # ARTICLE GENERATOR
 # ======================================================
@@ -410,17 +573,25 @@ def get_jobs():
 def create_article(job):
 
     title = job["title"]
-    organization = title.split(" Jobs")[0]
+
+    organization = title.split(
+        " Jobs"
+    )[0]
+
     job_type = job["job_type"]
 
     image_html = ""
 
-    if job.get("image"):
+    if job.get(
+        "image"
+    ):
 
         image_html = f"""
 <p style="text-align:center;">
+
 <img src="{job['image']}"
 style="max-width:100%;height:auto;">
+
 </p>
 """
 
@@ -433,67 +604,148 @@ style="max-width:100%;height:auto;">
 
 <h2>Quick Information</h2>
 
-<table border="1" cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;">
+<table border="1"
+cellpadding="8"
+cellspacing="0"
+style="width:100%;border-collapse:collapse;">
+
 <tr>
-<td><b>Organization</b></td>
-<td>{organization}</td>
+
+<td>
+<b>Organization</b>
+</td>
+
+<td>
+{organization}
+</td>
+
 </tr>
 
 <tr>
-<td><b>Job Type</b></td>
-<td>{job_type}</td>
+
+<td>
+<b>Job Type</b>
+</td>
+
+<td>
+{job_type}
+</td>
+
 </tr>
 
 <tr>
-<td><b>Location</b></td>
-<td>Pakistan</td>
+
+<td>
+<b>Location</b>
+</td>
+
+<td>
+Pakistan
+</td>
+
 </tr>
 
 <tr>
-<td><b>Application Method</b></td>
-<td>According to Official Advertisement</td>
+
+<td>
+<b>Application Method</b>
+</td>
+
+<td>
+According to Official Advertisement
+</td>
+
 </tr>
+
 </table>
 
 <h2>Job Details</h2>
 
 <p>
-{organization} has announced the latest career opportunities for eligible
-candidates across Pakistan. Applicants are advised to read the official
-advertisement carefully before submitting their applications.
+
+{organization} has announced the latest career opportunities
+for eligible candidates across Pakistan. Applicants are advised
+to read the official advertisement carefully before submitting
+their applications.
+
 </p>
 
 <p>
-Candidates possessing the required qualifications and experience can apply
-before the closing date mentioned in the official advertisement.
+
+Candidates possessing the required qualifications and experience
+can apply before the closing date mentioned in the official
+advertisement.
+
 </p>
 
 <h2>Eligibility Criteria</h2>
 
 <ul>
-<li>Required qualification according to advertisement.</li>
-<li>Relevant experience where applicable.</li>
-<li>Age limit according to organization rules.</li>
-<li>Both male and female candidates may apply where eligible.</li>
+
+<li>
+Required qualification according to advertisement.
+</li>
+
+<li>
+Relevant experience where applicable.
+</li>
+
+<li>
+Age limit according to organization rules.
+</li>
+
+<li>
+Both male and female candidates may apply where eligible.
+</li>
+
 </ul>
 
 <h2>Required Documents</h2>
 
 <ul>
-<li>CNIC</li>
-<li>Educational Certificates</li>
-<li>Experience Certificates</li>
-<li>Recent Passport Size Photographs</li>
-<li>Updated CV</li>
+
+<li>
+CNIC
+</li>
+
+<li>
+Educational Certificates
+</li>
+
+<li>
+Experience Certificates
+</li>
+
+<li>
+Recent Passport Size Photographs
+</li>
+
+<li>
+Updated CV
+</li>
+
 </ul>
 
 <h2>How to Apply</h2>
 
 <ol>
-<li>Read the complete advertisement carefully.</li>
-<li>Prepare all required documents.</li>
-<li>Submit the application before the deadline.</li>
-<li>Incomplete applications may not be accepted.</li>
+
+<li>
+Read the complete advertisement carefully.
+</li>
+
+<li>
+Prepare all required documents.
+</li>
+
+<li>
+Submit the application before the deadline.
+</li>
+
+<li>
+Incomplete applications may not be accepted.
+</li>
+
 </ol>
 
 <h2>Official Advertisement</h2>
@@ -520,29 +772,49 @@ View Official Advertisement
 <h2>Final Words</h2>
 
 <p>
-Interested candidates should apply as early as possible and carefully
-follow all instructions mentioned in the official advertisement.
-Late or incomplete applications may not be entertained.
+
+Interested candidates should apply as early as possible and
+carefully follow all instructions mentioned in the official
+advertisement. Late or incomplete applications may not be
+entertained.
+
 </p>
 
 """
 
     return content
+
+
 # ======================================================
-# BLOGGER POSTING
+# BLOGGER POSTING + FACEBOOK
 # ======================================================
 
-def post_to_blogger(service, job):
+def post_to_blogger(
+    service,
+    job
+):
 
-    content = create_article(job)
+    # ------------------------------------------
+    # Create Blogger article
+    # ------------------------------------------
+
+    content = create_article(
+        job
+    )
 
     post = {
 
         "title": job["title"],
+
         "content": content,
+
         "labels": job["labels"]
 
     }
+
+    # ------------------------------------------
+    # Publish to Blogger ONCE
+    # ------------------------------------------
 
     result = service.posts().insert(
         blogId=BLOG_ID,
@@ -550,11 +822,108 @@ def post_to_blogger(service, job):
         isDraft=False
     ).execute()
 
-    print("✅ Posted:", job["title"])
+    # ------------------------------------------
+    # Get actual Blogger URL
+    # ------------------------------------------
 
-    blogger_url = result["url"]
+    blogger_url = result.get(
+        "url"
+    )
 
-    post_to_facebook(job["title"], blogger_url)
+    print()
+
+    print(
+        "===================================="
+    )
+
+    print(
+        "✅ Blogger Post Published"
+    )
+
+    print(
+        "Title:",
+        job["title"]
+    )
+
+    print(
+        "Blogger URL:",
+        blogger_url
+    )
+
+    print(
+        "===================================="
+    )
+
+    # ------------------------------------------
+    # Validate Blogger URL
+    # ------------------------------------------
+
+    if not blogger_url:
+
+        print(
+            "⚠️ Blogger did not return a post URL."
+        )
+
+        return
+
+    # ------------------------------------------
+    # Post to Facebook ONCE
+    # ------------------------------------------
+
+    print()
+
+    print(
+        "===================================="
+    )
+
+    print(
+        "Posting to Facebook..."
+    )
+
+    print(
+        "Blogger URL being sent:",
+        blogger_url
+    )
+
+    print(
+        "Image being sent:",
+        job.get("image")
+    )
+
+    print(
+        "===================================="
+    )
+
+    try:
+
+        facebook_success = post_to_facebook(
+            job["title"],
+            blogger_url,
+            job.get("image")
+        )
+
+        if facebook_success:
+
+            print(
+                "✅ Facebook post created successfully"
+            )
+
+        else:
+
+            print(
+                "❌ Facebook posting failed"
+            )
+
+    except Exception as e:
+
+        print(
+            "⚠️ Blogger published successfully,"
+            " but Facebook posting failed:"
+        )
+
+        print(
+            e
+        )
 
 
 # ======================================================
@@ -563,9 +932,13 @@ def post_to_blogger(service, job):
 
 def main(service):
 
-    print("\nLoading existing Blogger posts...")
+    print(
+        "\nLoading existing Blogger posts..."
+    )
 
-    existing_titles, existing_urls = get_existing_posts(service)
+    existing_titles, existing_urls = get_existing_posts(
+        service
+    )
 
     print(
         f"Found {len(existing_titles)} existing posts."
@@ -578,35 +951,48 @@ def main(service):
     for job in jobs:
 
         if posted >= POSTS_PER_RUN:
+
             break
 
         title = job["title"].strip().lower()
 
         url = job["link"].strip()
 
-        # -------------------------------------
-        # Duplicate URL check (BEST)
-        # -------------------------------------
+        # ------------------------------------------
+        # Duplicate URL Check
+        # ------------------------------------------
 
         if url in existing_urls:
 
-            print("⏩ Duplicate URL skipped")
+            print(
+                "⏩ Duplicate URL skipped"
+            )
 
-            print(job["title"])
+            print(
+                job["title"]
+            )
 
             continue
 
-        # -------------------------------------
-        # Duplicate title check
-        # -------------------------------------
+        # ------------------------------------------
+        # Duplicate Title Check
+        # ------------------------------------------
 
         if title in existing_titles:
 
-            print("⏩ Duplicate title skipped")
+            print(
+                "⏩ Duplicate title skipped"
+            )
 
-            print(job["title"])
+            print(
+                job["title"]
+            )
 
             continue
+
+        # ------------------------------------------
+        # Publish Job
+        # ------------------------------------------
 
         try:
 
@@ -615,9 +1001,16 @@ def main(service):
                 job
             )
 
-            existing_titles.add(title)
+            # Add to duplicate sets
+            # immediately after successful Blogger publish
 
-            existing_urls.add(url)
+            existing_titles.add(
+                title
+            )
+
+            existing_urls.add(
+                url
+            )
 
             posted += 1
 
@@ -625,7 +1018,9 @@ def main(service):
                 f"Posted {posted}/{POSTS_PER_RUN}"
             )
 
-            time.sleep(10)
+            time.sleep(
+                10
+            )
 
         except Exception as e:
 
@@ -634,13 +1029,21 @@ def main(service):
                 e
             )
 
+    # ------------------------------------------
+    # Final Result
+    # ------------------------------------------
+
     if posted == 0:
 
-        print("\nNo new jobs found.")
+        print(
+            "\nNo new jobs found."
+        )
 
     else:
 
-        print(f"\nFinished. {posted} new jobs posted.")
+        print(
+            f"\nFinished. {posted} new jobs posted."
+        )
 
 
 # ======================================================
@@ -649,11 +1052,21 @@ def main(service):
 
 def run(service):
 
-    print("\n====================================")
-    print("Checking for fresh jobs...")
-    print("====================================")
+    print(
+        "\n===================================="
+    )
 
-    main(service)
+    print(
+        "Checking for fresh jobs..."
+    )
+
+    print(
+        "===================================="
+    )
+
+    main(
+        service
+    )
 
 
 # ======================================================
@@ -664,18 +1077,34 @@ if __name__ == "__main__":
 
     service = get_service()
 
-    print("====================================")
-    print("Pakistan Jobs Auto Poster Started")
-    print("====================================")
+    print(
+        "===================================="
+    )
+
+    print(
+        "Pakistan Jobs Auto Poster Started"
+    )
+
+    print(
+        "===================================="
+    )
 
     print(
         f"Checking every {CHECK_INTERVAL_HOURS} hours..."
     )
 
-    # First run immediately
-    run(service)
+    # ------------------------------------------
+    # First Run Immediately
+    # ------------------------------------------
 
-    # Schedule future runs
+    run(
+        service
+    )
+
+    # ------------------------------------------
+    # Schedule Future Runs
+    # ------------------------------------------
+
     schedule.every(
         CHECK_INTERVAL_HOURS
     ).hours.do(
@@ -683,8 +1112,14 @@ if __name__ == "__main__":
         service
     )
 
+    # ------------------------------------------
+    # Keep Running
+    # ------------------------------------------
+
     while True:
 
         schedule.run_pending()
 
-        time.sleep(30)
+        time.sleep(
+            30
+        )
