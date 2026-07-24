@@ -1,44 +1,57 @@
 name: Auto Job Poster
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch:
+schedule:
+- cron: "*/30 * * * *"
+workflow_dispatch:
 
 jobs:
-  run:
-    runs-on: ubuntu-latest
+run:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+```
+steps:
+  - name: Checkout
+    uses: actions/checkout@v5
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+  - name: Setup Python
+    uses: actions/setup-python@v6
+    with:
+      python-version: "3.12"
 
-      - name: Install requirements
-        run: pip install -r requirements.txt
+  - name: Install requirements
+    run: pip install -r requirements.txt
 
-      - name: Create token.json
-        run: echo '${{ secrets.TOKEN_JSON }}' > token.json
+  - name: Create token.json
+    run: echo '${{ secrets.TOKEN_JSON }}' > token.json
 
-      - name: Create credentials.json
-        run: echo '${{ secrets.CREDENTIALS_JSON }}' > credentials.json
+  - name: Create credentials.json
+    run: echo '${{ secrets.CREDENTIALS_JSON }}' > credentials.json
 
-      - name: Run scraper2
-        env:
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scraper2.py
+  # ==================================================
+  # FIRST: RUN BEEBEE
+  # ==================================================
 
-      - name: Run BeBee scraper
-        env:
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scraper_bebee.py
+  - name: Run BeBee scraper
+    id: bebee
+    continue-on-error: true
+    env:
+      FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+      FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    run: python scraper_bebee.py
+
+  # ==================================================
+  # SECOND: RUN SCRAPER2 ONLY IF BEEBEE DID NOT POST
+  # ==================================================
+
+  - name: Run scraper2
+    if: steps.bebee.outcome != 'success'
+    env:
+      FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+      FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    run: python scraper2.py
+```
