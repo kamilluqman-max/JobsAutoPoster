@@ -52,15 +52,7 @@ HEADERS = {
 REQUEST_TIMEOUT = 15
 
 # ======================================================
-# IMPORTANT
-# ======================================================
-# Only ONE new job is posted per scraper run.
-#
-# GitHub Actions should run this script every 30 minutes:
-#
-# cron: "*/30 * * * *"
-#
-# This creates a 30-minute posting window.
+# ONLY ONE NEW JOB PER COMPLETE GITHUB RUN
 # ======================================================
 
 POSTS_PER_RUN = 1
@@ -741,10 +733,6 @@ def create_seo_paragraphs(
             keywords[0]
         )
 
-    # ------------------------------------------
-    # JOB INFORMATION
-    # ------------------------------------------
-
     title = job.get(
         "title",
         "this job opportunity"
@@ -767,13 +755,6 @@ def create_seo_paragraphs(
     else:
 
         category = job_type
-
-    # ------------------------------------------
-    # DIFFERENT PARAGRAPH TEMPLATES
-    # ------------------------------------------
-    # Multiple templates are used so that articles
-    # do not contain identical SEO paragraphs.
-    # ------------------------------------------
 
     paragraph1_templates = [
 
@@ -939,10 +920,6 @@ before the closing date.
 
     ]
 
-    # ------------------------------------------
-    # SHUFFLE TEMPLATES
-    # ------------------------------------------
-
     random.shuffle(
         paragraph1_templates
     )
@@ -954,10 +931,6 @@ before the closing date.
     random.shuffle(
         paragraph3_templates
     )
-
-    # ------------------------------------------
-    # SELECT DIFFERENT TEMPLATES
-    # ------------------------------------------
 
     paragraph1 = paragraph1_templates[0].format(
         keyword=keywords[0]
@@ -1097,61 +1070,33 @@ def is_today_job(
     today_keywords = [
 
         "today",
-
         "just now",
-
         "hours ago",
-
         "hour ago",
-
         "minutes ago",
-
         "minute ago",
-
         "1 hour ago",
-
         "2 hours ago",
-
         "3 hours ago",
-
         "4 hours ago",
-
         "5 hours ago",
-
         "6 hours ago",
-
         "7 hours ago",
-
         "8 hours ago",
-
         "9 hours ago",
-
         "10 hours ago",
-
         "11 hours ago",
-
         "12 hours ago",
-
         "13 hours ago",
-
         "14 hours ago",
-
         "15 hours ago",
-
         "16 hours ago",
-
         "17 hours ago",
-
         "18 hours ago",
-
         "19 hours ago",
-
         "20 hours ago",
-
         "21 hours ago",
-
         "22 hours ago",
-
         "23 hours ago"
 
     ]
@@ -1325,10 +1270,6 @@ def get_jobs():
         ) < 5:
 
             continue
-
-        # ------------------------------------------
-        # ONLY TODAY'S JOBS
-        # ------------------------------------------
 
         if not is_today_job(
             card
@@ -1836,13 +1777,9 @@ def main(
             "No today's jobs found."
         )
 
-        return
+        return False
 
     posted = 0
-
-    # ==================================================
-    # ONLY ONE NEW JOB PER RUN
-    # ==================================================
 
     for job in jobs:
 
@@ -1858,10 +1795,6 @@ def main(
             "link"
         ].strip()
 
-        # ------------------------------------------
-        # DUPLICATE URL
-        # ------------------------------------------
-
         if url in existing_urls:
 
             print()
@@ -1876,10 +1809,6 @@ def main(
 
             continue
 
-        # ------------------------------------------
-        # DUPLICATE TITLE
-        # ------------------------------------------
-
         if title in existing_titles:
 
             print()
@@ -1893,10 +1822,6 @@ def main(
             )
 
             continue
-
-        # ------------------------------------------
-        # PUBLISH ONLY ONE JOB
-        # ------------------------------------------
 
         try:
 
@@ -1927,23 +1852,18 @@ def main(
                 )
 
                 print(
-                    "Posting window complete."
+                    "BeBee successfully posted 1 new job."
                 )
 
                 print(
-                    "1 new job posted this run."
-                )
-
-                print(
-                    "Next GitHub Actions run will be"
-                    " in approximately 30 minutes."
+                    "GitHub Actions will NOT run scraper2."
                 )
 
                 print(
                     "===================================="
                 )
 
-                break
+                return True
 
         except Exception as e:
 
@@ -1957,31 +1877,25 @@ def main(
                 e
             )
 
-    # ==================================================
-    # FINAL RESULT
-    # ==================================================
-
     print()
 
     print(
         "===================================="
     )
 
-    if posted == 0:
+    print(
+        "No new job was posted by BeBee."
+    )
 
-        print(
-            "No new job was posted this run."
-        )
-
-    else:
-
-        print(
-            f"Finished. {posted} new job posted."
-        )
+    print(
+        "GitHub Actions will now run scraper2.py."
+    )
 
     print(
         "===================================="
     )
+
+    return False
 
 
 # ======================================================
@@ -2014,6 +1928,14 @@ if __name__ == "__main__":
         "===================================="
     )
 
-    main(
+    success = main(
         service
     )
+
+    if success:
+
+        exit(0)
+
+    else:
+
+        exit(1)
