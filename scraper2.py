@@ -1,7 +1,6 @@
 from facebook_post import post_to_facebook
 from telegram_post import post_to_telegram
 
-import schedule
 import time
 import requests
 import hashlib
@@ -19,7 +18,9 @@ from googleapiclient.discovery import build
 # CONFIGURATION
 # ======================================================
 
-SCOPES = ["https://www.googleapis.com/auth/blogger"]
+SCOPES = [
+    "https://www.googleapis.com/auth/blogger"
+]
 
 BLOG_ID = "8970771897067197122"
 
@@ -29,9 +30,10 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
-CHECK_INTERVAL_HOURS = 4
+# GitHub Actions controls the 30-minute schedule.
+# This scraper runs only once per GitHub Actions execution.
 
-POSTS_PER_RUN = 5
+POSTS_PER_RUN = 1
 
 REQUEST_TIMEOUT = 10
 
@@ -55,7 +57,9 @@ def get_service():
 
         if creds and creds.expired and creds.refresh_token:
 
-            creds.refresh(Request())
+            creds.refresh(
+                Request()
+            )
 
         else:
 
@@ -402,11 +406,27 @@ def get_jobs():
         "Loading homepage..."
     )
 
-    response = requests.get(
-        BASE_URL,
-        headers=HEADERS,
-        timeout=REQUEST_TIMEOUT
-    )
+    try:
+
+        response = requests.get(
+            BASE_URL,
+            headers=HEADERS,
+            timeout=REQUEST_TIMEOUT
+        )
+
+        response.raise_for_status()
+
+    except Exception as e:
+
+        print(
+            "❌ Failed to load Pakistan Jobs Bank:"
+        )
+
+        print(
+            e
+        )
+
+        return []
 
     soup = BeautifulSoup(
         response.text,
@@ -796,10 +816,6 @@ def post_to_blogger(
     job
 ):
 
-    # ------------------------------------------
-    # Create Blogger article
-    # ------------------------------------------
-
     content = create_article(
         job
     )
@@ -815,7 +831,7 @@ def post_to_blogger(
     }
 
     # ------------------------------------------
-    # Publish to Blogger ONCE
+    # Publish to Blogger
     # ------------------------------------------
 
     result = service.posts().insert(
@@ -823,10 +839,6 @@ def post_to_blogger(
         body=post,
         isDraft=False
     ).execute()
-
-    # ------------------------------------------
-    # Get actual Blogger URL
-    # ------------------------------------------
 
     blogger_url = result.get(
         "url"
@@ -856,44 +868,22 @@ def post_to_blogger(
         "===================================="
     )
 
-    # ------------------------------------------
-    # Validate Blogger URL
-    # ------------------------------------------
-
     if not blogger_url:
 
         print(
             "⚠️ Blogger did not return a post URL."
         )
 
-        return
+        return False
 
     # ------------------------------------------
-    # Post to Facebook ONCE
+    # Facebook
     # ------------------------------------------
 
     print()
 
     print(
-        "===================================="
-    )
-
-    print(
         "Posting to Facebook..."
-    )
-
-    print(
-        "Blogger URL being sent:",
-        blogger_url
-    )
-
-    print(
-        "Image being sent:",
-        job.get("image")
-    )
-
-    print(
-        "===================================="
     )
 
     try:
@@ -928,31 +918,13 @@ def post_to_blogger(
         )
 
     # ------------------------------------------
-    # Post to Telegram ONCE
+    # Telegram
     # ------------------------------------------
 
     print()
 
     print(
-        "===================================="
-    )
-
-    print(
         "Posting to Telegram..."
-    )
-
-    print(
-        "Blogger URL being sent:",
-        blogger_url
-    )
-
-    print(
-        "Image being sent:",
-        job.get("image")
-    )
-
-    print(
-        "===================================="
     )
 
     try:
@@ -986,6 +958,8 @@ def post_to_blogger(
             e
         )
 
+    return True
+
 
 # ======================================================
 # MAIN
@@ -1007,6 +981,14 @@ def main(service):
 
     jobs = get_jobs()
 
+    if not jobs:
+
+        print(
+            "\nNo jobs found."
+        )
+
+        return False
+
     posted = 0
 
     for job in jobs:
@@ -1015,9 +997,13 @@ def main(service):
 
             break
 
-        title = job["title"].strip().lower()
+        title = job[
+            "title"
+        ].strip().lower()
 
-        url = job["link"].strip()
+        url = job[
+            "link"
+        ].strip()
 
         # ------------------------------------------
         # Duplicate URL Check
@@ -1052,36 +1038,49 @@ def main(service):
             continue
 
         # ------------------------------------------
-        # Publish Job
+        # Publish ONE Job
         # ------------------------------------------
 
         try:
 
-            post_to_blogger(
+            success = post_to_blogger(
                 service,
                 job
             )
 
-            # Add to duplicate sets
-            # immediately after successful Blogger publish
+            if success:
 
-            existing_titles.add(
-                title
-            )
+                existing_titles.add(
+                    title
+                )
 
-            existing_urls.add(
-                url
-            )
+                existing_urls.add(
+                    url
+                )
 
-            posted += 1
+                posted += 1
 
-            print(
-                f"Posted {posted}/{POSTS_PER_RUN}"
-            )
+                print(
+                    f"Posted {posted}/{POSTS_PER_RUN}"
+                )
 
-            time.sleep(
-                10
-            )
+                print(
+                    "\n===================================="
+                )
+
+                print(
+                    "Posting window complete."
+                )
+
+                print(
+                    "1 new job posted by scraper2."
+                )
+
+                print(
+                    "===================================="
+                )
+
+                return True
 
         except Exception as e:
 
@@ -1094,40 +1093,27 @@ def main(service):
     # Final Result
     # ------------------------------------------
 
+    print(
+        "\n===================================="
+    )
+
     if posted == 0:
 
         print(
-            "\nNo new jobs found."
+            "No new jobs posted by scraper2."
         )
 
     else:
 
         print(
-            f"\nFinished. {posted} new jobs posted."
+            f"Finished. {posted} new job posted."
         )
-
-
-# ======================================================
-# SCHEDULER
-# ======================================================
-
-def run(service):
-
-    print(
-        "\n===================================="
-    )
-
-    print(
-        "Checking for fresh jobs..."
-    )
 
     print(
         "===================================="
     )
 
-    main(
-        service
-    )
+    return posted > 0
 
 
 # ======================================================
@@ -1143,44 +1129,33 @@ if __name__ == "__main__":
     )
 
     print(
-        "Pakistan Jobs Auto Poster Started"
+        "Pakistan Jobs Auto Poster"
+    )
+
+    print(
+        "Maximum 1 New Job Per Run"
     )
 
     print(
         "===================================="
     )
 
-    print(
-        f"Checking every {CHECK_INTERVAL_HOURS} hours..."
-    )
-
-    # ------------------------------------------
-    # First Run Immediately
-    # ------------------------------------------
-
-    run(
+    success = main(
         service
     )
 
-    # ------------------------------------------
-    # Schedule Future Runs
-    # ------------------------------------------
+    if success:
 
-    schedule.every(
-        CHECK_INTERVAL_HOURS
-    ).hours.do(
-        run,
-        service
-    )
-
-    # ------------------------------------------
-    # Keep Running
-    # ------------------------------------------
-
-    while True:
-
-        schedule.run_pending()
-
-        time.sleep(
-            30
+        print(
+            "✅ scraper2 posted a new job."
         )
+
+        exit(0)
+
+    else:
+
+        print(
+            "ℹ️ scraper2 did not post a new job."
+        )
+
+        exit(1)
