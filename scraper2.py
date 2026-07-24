@@ -1,4 +1,6 @@
 from facebook_post import post_to_facebook
+from telegram_post import post_to_telegram
+
 import schedule
 import time
 import requests
@@ -786,7 +788,7 @@ entertained.
 
 
 # ======================================================
-# BLOGGER POSTING + FACEBOOK
+# BLOGGER POSTING + FACEBOOK + TELEGRAM
 # ======================================================
 
 def post_to_blogger(
@@ -919,6 +921,65 @@ def post_to_blogger(
         print(
             "⚠️ Blogger published successfully,"
             " but Facebook posting failed:"
+        )
+
+        print(
+            e
+        )
+
+    # ------------------------------------------
+    # Post to Telegram ONCE
+    # ------------------------------------------
+
+    print()
+
+    print(
+        "===================================="
+    )
+
+    print(
+        "Posting to Telegram..."
+    )
+
+    print(
+        "Blogger URL being sent:",
+        blogger_url
+    )
+
+    print(
+        "Image being sent:",
+        job.get("image")
+    )
+
+    print(
+        "===================================="
+    )
+
+    try:
+
+        telegram_success = post_to_telegram(
+            job["title"],
+            blogger_url,
+            job.get("image")
+        )
+
+        if telegram_success:
+
+            print(
+                "✅ Telegram post created successfully"
+            )
+
+        else:
+
+            print(
+                "❌ Telegram posting failed"
+            )
+
+    except Exception as e:
+
+        print(
+            "⚠️ Blogger published successfully,"
+            " but Telegram posting failed:"
         )
 
         print(
